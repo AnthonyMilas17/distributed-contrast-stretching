@@ -1,0 +1,149 @@
+main:
+
+	1. MPI init stuff (line 35)
+	2. Read in CLI arguments (line 42)
+	3. Print Program Info (line 58)
+	4. Read Bitmap File into Image (line 76)
+	5. Perform Constrast Stretching (line 100)
+		1. DistributeImage (line 162)
+		2. ConstrastStretch (line 219 in cs.cpp)
+		3. CollectImage (line 242)
+	
+	6. Save Image and Print Exec Time (line 129)
+	
+
+
+
+
+
+
+
+
+
+	Distribute Image:
+		1. Initialize MPI variables
+		
+		Master:
+			2. Calculate rows per processes & number of left over rows
+			3. Send params (rows per processes and cols) to each worker **not sending ghost rows**
+			4. Send corresponding image chunk to each worker (skipping over Master image chunk + left over Rows)
+			5. Update Rows to represent Master image chunk (rowsPerProc + leftOverRows) instead of representing rows in the entire image
+
+		Worker:
+			2. Receive params (rows per processes and cols) from Master
+			3. Update global row and col variables
+			4. Allocate worker image chunk (including 2 ghost rows)	
+			5. Receive worker image chunk from Master (skipping the first row to account for the top ghost row)
+
+		6. Return image (either Master or Worker chunk)
+
+
+
+
+	
+	
+
+	
+
+
+
+
+
+	Contrast Stretch:
+		1. Initialize MPI variables (including myRank and numProcs)
+		2. Copy the image pointer into original_image
+		3. Allocate image2 chunk (including 2 ghost rows)
+		4. Substract 1 from rows for boundary image chunks (Master and last worker have 1 less ghost row)
+		5. Perform contrast stretching one step at a time (while loop):
+			1. All processes except the last send their bottom row (ghost row) to the next process
+			2. All processes except the first (Master) Receive ghost row from previous process and store into top row
+			3. All processes except the first (Master) send their top row (ghost row) to the previous process
+			4. All processes except the last Receive ghost row from next process and store into bottom row
+			5. For each row in our chunk, perform stretch_one_pixel on each pixel
+			6. Call copy_boundary to put boundary rows into temp image
+			7. Flip image pointers and increment step
+
+		6. Make sure results are in original image matrix:
+			if. Image pointer != original_image pointer:
+				1. Copy image contents into original_image
+				2. Delete image (which points to image2)
+			else. 
+				1. Delete image2 (no need to copy since results are in correct location in memory)
+
+		7. return original_image pointer 
+	
+
+
+
+
+
+
+
+
+	CollectImage:
+		1. Declare MPI variables
+	
+		Worker:
+			2. Send image chunk to Master (remember to skip first ghost row)
+			3. Free worker image chunk and set image to NULL
+
+		Master:
+			2. Receive image chunk from workers (skipping over Master image chunk + left over Rows)
+			3. Return image
+			
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
